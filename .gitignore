@@ -1,0 +1,7 @@
+/.tmp
+/.librarian
+/.bundle
+/modules
+/bin
+/build
+/spec/fixtures/modules

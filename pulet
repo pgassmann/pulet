@@ -1,0 +1,229 @@
+#!/bin/bash
+# Usage: ./pulet help
+
+set -e
+dir="$(dirname $(readlink -f $0))"
+cd $dir
+
+default_path=$PATH
+# environment can be set via ENV.
+# export PUPPET_ENVIRONMENT=development
+environment=${PUPPET_ENVIRONMENT:-production}
+
+# Configuration: Use Puppetlabs collection package? otherwise use bundle
+# Override with ENV PUPPET_INSTALLMETHOD or with option -m bundle
+installmethod="collection"
+installmethod=${PUPPET_INSTALLMETHOD:-$installmethod}
+
+# Declare valid subcommands with help information
+declare -A SUBCOMMANDS
+SUBCOMMANDS[apply]="        apply the current configuation, can be used as long as there are no changes in external modules."
+SUBCOMMANDS[facts]="        dump facts using custom facts in modules"
+SUBCOMMANDS[help]="         print usage information"
+SUBCOMMANDS[install]="      install development environment with tools, without apply"
+SUBCOMMANDS[librarian]="    librarian-puppet"
+SUBCOMMANDS[package]="      package configuration as rpm"
+SUBCOMMANDS[setup]="        install & apply"
+SUBCOMMANDS[bundle]="       bundle with correct environment"
+#SUBCOMMANDS[]=""
+
+help() {
+  echo "Usage: $0 [-m collection|bundle] subcommand [parameters]"
+  echo "Valid subcommands:"
+  for K in "${!SUBCOMMANDS[@]}"; do echo "$K: ${SUBCOMMANDS[$K]}"; done | sort
+}
+
+# private
+set_path(){
+  export PATH="$default_path:$puppetpath:$dir/bin"
+}
+
+# private
+install_puppet() {
+  echo "installing puppet, method: ${installmethod}" >&2
+  # how to install puppet
+  # bundle: install as rubygem
+  # collection: install puppet collection package.
+
+
+  if [ $installmethod = "bundle" ]; then
+    # first run, no bundle commmand
+    if ! bundle --version 2>/dev/null;  then
+      if [ -f /etc/redhat-release ]; then
+        sudo yum clean all
+        sudo yum install -y ruby ruby-dev make gcc
+      elif [ -f /etc/debian_version ]; then
+        sudo apt-get update
+        sudo apt-get install -y ruby ruby-dev make git gcc
+      else
+        echo "OS not supported yet"; exit 1
+      fi
+      gem install bundler --no-ri --no-rdoc
+    fi
+    unset puppetpath
+  elif [ $installmethod = "collection" ]; then
+    if [ ! -f $puppetpath/puppet ];  then
+      if [ -f /etc/redhat-release ]; then
+        yum localinstall "http://yum.puppetlabs.com/puppetlabs-release-pc1-el-7.noarch.rpm"
+        yum clean all
+        yum install -y puppet-agent
+      elif [ -f /etc/debian_version ]; then
+        release_codename=$(lsb_release -cs)
+        wget https://apt.puppetlabs.com/puppetlabs-release-pc1-${release_codename}.deb
+        sudo dpkg -i puppetlabs-release-pc1-${release_codename}.deb
+        rm puppetlabs-release-pc1-${release_codename}.deb
+        sudo apt update
+        sudo apt install puppet-agent
+      else
+        echo "OS not supported yet"; exit 1
+      fi
+    fi
+    if [ ! -f $puppetpath/bundle ];  then
+      $puppetpath/gem install bundler --no-ri --no-rdoc
+    fi
+  fi
+} #end install
+
+# private
+install_gems(){
+  set_path
+  echo "Install gems from Gemfile or Gemfile.lock if checked in" >&2
+  bundle install --path=.bundle --binstubs=bin
+}
+
+# private
+install_modules(){
+  echo "Install puppet modules" >&2
+  librarian install --path ./modules --verbose --clean
+}
+
+librarian() {
+  set_path
+  bundle exec librarian-puppet "$@"
+}
+bundle() {
+  set_path
+  command bundle "$@"
+}
+
+apply() {
+  set_path
+  # Run Puppet
+  echo "Run Puppet" >&2
+  mkdir -p $environment # Puppet 4 requires an environment directory
+  puppet apply --show_diff \
+    --write-catalog-summary \
+    --modulepath=./site:./modules \
+    --hiera_config=hiera.yaml \
+    --environmentpath=. \
+    --environment $environment \
+    site.pp "$@"
+}
+
+install() {
+  install_puppet
+  install_gems
+  install_modules
+}
+
+setup() {
+  install "$@"
+  apply "$@"
+}
+
+package() {
+  set_path
+  export PACKAGING=fpm
+  install_gems
+  install_modules
+  set -x
+
+  # package
+  rm ./build/puppetconfig -rf
+  mkdir -p ./build/puppetconfig
+  cp -a -t ./build/puppetconfig \
+    site \
+    hieradata \
+    modules \
+    Gemfile* \
+    Puppetfile* \
+    hiera.yaml \
+    localsetup \
+    README.md \
+    site.pp
+
+  package_fpm
+  rm ./build/puppetconfig -rf
+}
+
+# private
+package_fpm() {
+  set_path
+  version=$(cat ./version)
+  iteration="1"
+  git_version=$(git describe --always)
+
+  bundle exec fpm -s dir -t rpm \
+    -x ".git*" \
+    -n puppetconfig \
+    -p ./build/ \
+    -v $version \
+    --iteration "${iteration}_${git_version}" \
+    -a all \
+    --description "TODO" \
+    --maintainer "TODO <email@domain.tld>" \
+    ./build/puppetconfig=/opt
+}
+
+facts() {
+  set_path
+  # dump all facts with puppet to use custom modulepath
+  puppet facts --modulepath=./site:./modules "$@"
+}
+
+## MAIN
+# global options (before subcommand)
+while getopts :m: opt "$@"; do
+  case $opt in
+    m) # if -m bundle or -m collection set installmethod and shift options.
+      if [[ $OPTARG =~ ^(collection|bundle)$ ]]; then
+        echo "Set install mode: $OPTARG" >&2
+        installmethod=$OPTARG
+        shift $((OPTIND - 1))
+      else
+        echo "Unknown install mode '$OPTARG', valid options are collection|bundle"
+        exit 1
+      fi
+      ;;
+    \?)
+      echo "Invalid global option: -$OPTARG" >&2
+      exit 1
+      ;;
+    :)
+      echo "Option -$OPTARG requires an argument." >&2
+      exit 1
+      ;;
+  esac
+done
+if [ $installmethod = "collection" ]; then
+  puppetpath="/opt/puppetlabs/puppet/bin"
+  installmethod=collection
+else
+  installmethod=bundle
+fi
+# if first arg is a defined subcommand, execute it.
+command=$1
+if [[ "$command" == "" ]]; then
+  echo "Missing subcommand" >&2
+  help
+  exit 1
+elif [[ ${SUBCOMMANDS[$command]} == "" ]] ; then
+  echo "Invalid subcommand $command" >&2
+  help
+  exit 1
+else
+
+  shift 1
+  # continue with command
+  "$command" "$@"
+fi

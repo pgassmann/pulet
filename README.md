@@ -17,20 +17,22 @@ What
  * One-Command setup with all-in-one puppet-agent package from puppet collection repo.
  * Alternative: Install Puppet using bundler and Gemfile to a separate path from system gems
 
+
 Why?
 ----
  * Small flexible system to puppetize servers for example in a home setup environment.
  * Test/Develop Puppet on ephemeral systems without having them to register on a Puppetmaster.
  * All the configuration and scripts in one git repository.
 
-Prerequisites
--------------
- * VM with Ubuntu 14.04+ or EL 7+ Server.
- * Git to clone the repo
-
 
 Bootstrap
 ---------
+
+### Prerequisites
+
+ * VM with Ubuntu 14.04+ or EL 7+ Server.
+ * Git to clone the repo
+
 Run the following commands to setup your server.
 
     yum install git -y
@@ -42,7 +44,7 @@ Run the following commands to setup your server.
 How it works
 ------------
 
-###First run:
+### First run:
 
 #### installmethod=collection
 

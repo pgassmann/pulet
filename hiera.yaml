@@ -1,0 +1,11 @@
+:backends:
+    - yaml
+:hierarchy:
+    - 1_hosts/%{::fqdn}
+    - 2_domains/%{::domain}
+    - 3_roles/%{::role}
+    - 4_defaults
+:yaml:
+   :datadir: ./hieradata
+
+:merge_behavior: deeper

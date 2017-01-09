@@ -4,29 +4,31 @@
 set -e
 dir="$(dirname $(readlink -f $0))"
 cd $dir
-
 default_path=$PATH
+# declare SUBCOMMANDS array variable
+declare -A SUBCOMMANDS
+
+# default settings, can be overridden in ./pulet.conf, /etc/pulet.conf or ./pulet.conf.local (ignored by git & packing)
+installmethod="collection"
+environment=production
+
+# load settings files
+[ -f ./pulet.conf ]       && source ./pulet.conf
+[ -f /etc/pulet.conf ]    && source /etc/pulet.conf
+[ -f ./pulet.conf.local ] && source ./pulet.conf.local
+
 # environment can be set via ENV.
 # export PUPPET_ENVIRONMENT=development
-environment=${PUPPET_ENVIRONMENT:-production}
+environment=${PUPPET_ENVIRONMENT:-$environment}
 
 # Configuration: Use Puppetlabs collection package? otherwise use bundle
 # Override with ENV PUPPET_INSTALLMETHOD or with option -m bundle
-installmethod="collection"
 installmethod=${PUPPET_INSTALLMETHOD:-$installmethod}
 
-# Declare valid subcommands with help information
-declare -A SUBCOMMANDS
-SUBCOMMANDS[apply]="        apply the current configuation, can be used as long as there are no changes in external modules."
-SUBCOMMANDS[facts]="        dump facts using custom facts in modules"
-SUBCOMMANDS[help]="         print usage information"
-SUBCOMMANDS[install]="      install development environment with tools, without apply"
-SUBCOMMANDS[librarian]="    librarian-puppet"
-SUBCOMMANDS[package]="      package configuration as rpm"
-SUBCOMMANDS[setup]="        install & apply"
-SUBCOMMANDS[bundle]="       bundle with correct environment"
+# Define valid subcommands with help information
 #SUBCOMMANDS[]=""
 
+SUBCOMMANDS[help]="         print usage information"
 help() {
   echo "Usage: $0 [-m collection|bundle] subcommand [parameters]"
   echo "Valid subcommands:"
@@ -44,7 +46,6 @@ install_puppet() {
   # how to install puppet
   # bundle: install as rubygem
   # collection: install puppet collection package.
-
 
   if [ $installmethod = "bundle" ]; then
     # first run, no bundle commmand
@@ -64,12 +65,14 @@ install_puppet() {
   elif [ $installmethod = "collection" ]; then
     if [ ! -f $puppetpath/puppet ];  then
       if [ -f /etc/redhat-release ]; then
-        yum localinstall "http://yum.puppetlabs.com/puppetlabs-release-pc1-el-7.noarch.rpm"
+        curl -O "http://yum.puppetlabs.com/puppetlabs-release-pc1-el-7.noarch.rpm"
+        yum localinstall ./puppetlabs-release-pc1-el-7.noarch.rpm
+        rm ./puppetlabs-release-pc1-el-7.noarch.rpm
         yum clean all
         yum install -y puppet-agent
       elif [ -f /etc/debian_version ]; then
         release_codename=$(lsb_release -cs)
-        wget https://apt.puppetlabs.com/puppetlabs-release-pc1-${release_codename}.deb
+        curl -O https://apt.puppetlabs.com/puppetlabs-release-pc1-${release_codename}.deb
         sudo dpkg -i puppetlabs-release-pc1-${release_codename}.deb
         rm puppetlabs-release-pc1-${release_codename}.deb
         sudo apt update
@@ -97,15 +100,18 @@ install_modules(){
   librarian install --path ./modules --verbose --clean
 }
 
+SUBCOMMANDS[librarian]="    librarian-puppet"
 librarian() {
   set_path
   bundle exec librarian-puppet "$@"
 }
+SUBCOMMANDS[bundle]="       bundle with correct environment"
 bundle() {
   set_path
   command bundle "$@"
 }
 
+SUBCOMMANDS[apply]="        apply the current configuation, can be used as long as there are no changes in external modules."
 apply() {
   set_path
   # Run Puppet
@@ -120,17 +126,20 @@ apply() {
     site.pp "$@"
 }
 
+SUBCOMMANDS[install]="      install development environment with tools, without apply"
 install() {
   install_puppet
   install_gems
   install_modules
 }
 
+SUBCOMMANDS[setup]="        install & apply"
 setup() {
   install "$@"
   apply "$@"
 }
 
+SUBCOMMANDS[package]="      package configuration as rpm"
 package() {
   set_path
   export PACKAGING=fpm
@@ -148,7 +157,8 @@ package() {
     Gemfile* \
     Puppetfile* \
     hiera.yaml \
-    localsetup \
+    pulet \
+    pulet.conf \
     README.md \
     site.pp
 
@@ -175,6 +185,7 @@ package_fpm() {
     ./build/puppetconfig=/opt
 }
 
+SUBCOMMANDS[facts]="        dump facts using custom facts in modules"
 facts() {
   set_path
   # dump all facts with puppet to use custom modulepath

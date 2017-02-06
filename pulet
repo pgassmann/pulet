@@ -47,7 +47,7 @@ install_puppet() {
   # bundle: install as rubygem
   # collection: install puppet collection package.
 
-  if [ $installmethod = "bundle" ]; then
+  if [ "$installmethod" == "bundle" ]; then
     # first run, no bundle commmand
     if ! bundle --version 2>/dev/null;  then
       if [ -f /etc/redhat-release ]; then
@@ -62,7 +62,7 @@ install_puppet() {
       gem install bundler --no-ri --no-rdoc
     fi
     unset puppetpath
-  elif [ $installmethod = "collection" ]; then
+  elif [ "$installmethod" == "collection" ]; then
     if [ ! -f $puppetpath/puppet ];  then
       if [ -f /etc/redhat-release ]; then
         curl -O "http://yum.puppetlabs.com/puppetlabs-release-pc1-el-7.noarch.rpm"

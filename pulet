@@ -11,6 +11,7 @@ declare -A SUBCOMMANDS
 # default settings, can be overridden in ./pulet.conf, /etc/pulet.conf or ./pulet.conf.local (ignored by git & packing)
 installmethod="collection"
 environment=production
+configversion=0.0.1
 
 # load settings files
 [ -f ./pulet.conf ]       && source ./pulet.conf
@@ -24,9 +25,6 @@ environment=${PUPPET_ENVIRONMENT:-$environment}
 # Configuration: Use Puppetlabs collection package? otherwise use bundle
 # Override with ENV PUPPET_INSTALLMETHOD or with option -m bundle
 installmethod=${PUPPET_INSTALLMETHOD:-$installmethod}
-
-# Define valid subcommands with help information
-#SUBCOMMANDS[]=""
 
 SUBCOMMANDS[help]="         print usage information"
 help() {
@@ -65,9 +63,7 @@ install_puppet() {
   elif [ "$installmethod" == "collection" ]; then
     if [ ! -f $puppetpath/puppet ];  then
       if [ -f /etc/redhat-release ]; then
-        curl -O "http://yum.puppetlabs.com/puppetlabs-release-pc1-el-7.noarch.rpm"
-        yum localinstall ./puppetlabs-release-pc1-el-7.noarch.rpm
-        rm ./puppetlabs-release-pc1-el-7.noarch.rpm
+        yum localinstall -y "http://yum.puppetlabs.com/puppetlabs-release-pc1-el-7.noarch.rpm"
         yum clean all
         yum install -y puppet-agent
       elif [ -f /etc/debian_version ]; then
@@ -97,7 +93,7 @@ install_gems(){
 # private
 install_modules(){
   echo "Install puppet modules" >&2
-  librarian install --path ./modules --verbose --clean
+  librarian install --path ./modules --verbose
 }
 
 SUBCOMMANDS[librarian]="    librarian-puppet"
@@ -117,13 +113,15 @@ apply() {
   # Run Puppet
   echo "Run Puppet" >&2
   mkdir -p $environment # Puppet 4 requires an environment directory
-  puppet apply --show_diff \
+  puppet apply \
+    --test \
+    --show_diff \
     --write-catalog-summary \
-    --modulepath=./site:./modules \
+    --modulepath=modules:site \
     --hiera_config=hiera.yaml \
     --environmentpath=. \
     --environment $environment \
-    site.pp "$@"
+    manifests/site.pp "$@"
 }
 
 SUBCOMMANDS[install]="      install development environment with tools, without apply"
@@ -153,25 +151,30 @@ package() {
   cp -a -t ./build/puppetconfig \
     site \
     hieradata \
+    manifests\
     modules \
     Gemfile* \
     Puppetfile* \
     hiera.yaml \
     pulet \
     pulet.conf \
-    README.md \
-    site.pp
+    README.md
 
   package_fpm
   rm ./build/puppetconfig -rf
 }
 
+
+SUBCOMMANDS[version]="      print config_version"
+version(){
+  git_version=$(git describe --always)
+  echo "$configversion-$git_version"
+}
+
 # private
 package_fpm() {
   set_path
-  version=$(cat ./version)
-  iteration="1"
-  git_version=$(git describe --always)
+  version=$(version)
 
   bundle exec fpm -s dir -t rpm \
     -x ".git*" \
@@ -190,6 +193,14 @@ facts() {
   set_path
   # dump all facts with puppet to use custom modulepath
   puppet facts --modulepath=./site:./modules "$@"
+}
+
+SUBCOMMANDS[check]="        validate and lint code in site/"
+check() {
+  set_path
+  # dump all facts with puppet to use custom modulepath
+  puppet parser validate ./site && echo "validate OK"
+  puppet lint --no-80chars --no-documentation-check ./site && echo "linting OK"
 }
 
 ## MAIN

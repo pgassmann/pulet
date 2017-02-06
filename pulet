@@ -12,6 +12,8 @@ declare -A SUBCOMMANDS
 installmethod="collection"
 environment=production
 configversion=0.0.1
+package_description="Puppet Control Repo and Helpers"
+package_maintainer="UNDEFINED <nobody@example.com>"
 
 # load settings files
 [ -f ./pulet.conf ]       && source ./pulet.conf
@@ -164,27 +166,33 @@ package() {
   rm ./build/puppetconfig -rf
 }
 
-
 SUBCOMMANDS[version]="      print config_version"
 version(){
+  iteration=$(version_iteration)
+  echo "${configversion}-${iteration}"
+}
+version_iteration(){
+  git_commitcount=$(git rev-list --count HEAD)
   git_version=$(git describe --always)
-  echo "$configversion-$git_version"
+  datestring=$(date +%y%m%d)
+  echo "${datestring}c${git_commitcount}git${git_version}"
 }
 
 # private
 package_fpm() {
   set_path
-  version=$(version)
+  version=$configversion
+  iteration=$(version_iteration)
 
   bundle exec fpm -s dir -t rpm \
     -x ".git*" \
     -n puppetconfig \
     -p ./build/ \
     -v $version \
-    --iteration "${iteration}_${git_version}" \
+    --iteration "${iteration}" \
     -a all \
-    --description "TODO" \
-    --maintainer "TODO <email@domain.tld>" \
+    --description "$package_description" \
+    --maintainer "$package_maintainer" \
     ./build/puppetconfig=/opt
 }
 

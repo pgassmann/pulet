@@ -5,6 +5,7 @@ set -e
 dir="$(dirname $(readlink -f $0))"
 cd $dir
 default_path=$PATH
+git_commitdate=$(date -d $(git show -s --format=%cI HEAD) +%y%m%d)
 git_commitcount=$(git rev-list --count HEAD)
 git_version=$(git describe --always)
 # declare SUBCOMMANDS array variable
@@ -16,7 +17,7 @@ environment=production
 configversion=0.0.1
 package_description="Puppet Control Repo and Helpers"
 package_maintainer="UNDEFINED <nobody@example.com>"
-version_iteration="$(date +%y%m%d)c${git_commitcount}git${git_version}"
+version_iteration="${git_commitdate}c${git_commitcount}git${git_version}"
 
 # load settings files
 [ -f ./pulet.conf ]       && source ./pulet.conf

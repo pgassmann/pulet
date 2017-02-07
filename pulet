@@ -103,6 +103,11 @@ install_modules(){
   echo "Install puppet modules" >&2
   librarian install --path ./modules --verbose
 }
+# private
+clean_modules(){
+  echo "Clean puppet modules" >&2
+  librarian clean --path ./modules --verbose
+}
 
 SUBCOMMANDS[librarian]="    librarian-puppet"
 librarian() {
@@ -121,15 +126,25 @@ apply() {
   # Run Puppet
   echo "Run Puppet" >&2
   mkdir -p $environment # Puppet 4 requires an environment directory
-  puppet apply \
-    --test \
-    --show_diff \
-    --write-catalog-summary \
-    --modulepath=modules:site \
-    --hiera_config=hiera.yaml \
-    --environmentpath=. \
-    --environment $environment \
-    manifests/site.pp "$@"
+  # check puppet agent disable lock file
+  [ -f /opt/puppetlabs/puppet/cache/state/agent_disabled.lock ] && (
+    echo 'Puppet agent disabled - skipping' >&2;
+    cat /opt/puppetlabs/puppet/cache/state/agent_disabled.lock >&2; echo >&2;
+    exit 1
+  )
+  # check and set lockfile for puppet apply
+  (
+    flock -n 9 || ( echo 'Puppet agent lock file exist - skipping' >&2; exit 1 )
+    puppet apply \
+      --test \
+      --show_diff \
+      --write-catalog-summary \
+      --modulepath=modules:site \
+      --hiera_config=hiera.yaml \
+      --environmentpath=. \
+      --environment $environment \
+      manifests/site.pp "$@"
+  ) 9>/opt/puppetlabs/puppet/cache/state/agent_catalog_run.lock
 }
 
 SUBCOMMANDS[install]="      install development environment with tools, without apply"
@@ -150,6 +165,7 @@ package() {
   set_path
   export PACKAGING=fpm
   install_gems
+  clean_modules
   install_modules
   set -x
 
@@ -203,7 +219,6 @@ facts() {
 SUBCOMMANDS[check]="        validate and lint code in site/"
 check() {
   set_path
-  # dump all facts with puppet to use custom modulepath
   puppet parser validate ./site && echo "validate OK"
   puppet lint --no-80chars --no-documentation-check ./site && echo "linting OK"
 }

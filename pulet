@@ -5,6 +5,8 @@ set -e
 dir="$(dirname $(readlink -f $0))"
 cd $dir
 default_path=$PATH
+git_commitcount=$(git rev-list --count HEAD)
+git_version=$(git describe --always)
 # declare SUBCOMMANDS array variable
 declare -A SUBCOMMANDS
 
@@ -14,6 +16,7 @@ environment=production
 configversion=0.0.1
 package_description="Puppet Control Repo and Helpers"
 package_maintainer="UNDEFINED <nobody@example.com>"
+version_iteration="$(date +%y%m%d)c${git_commitcount}git${git_version}"
 
 # load settings files
 [ -f ./pulet.conf ]       && source ./pulet.conf
@@ -168,28 +171,19 @@ package() {
 
 SUBCOMMANDS[version]="      print config_version"
 version(){
-  iteration=$(version_iteration)
-  echo "${configversion}-${iteration}"
-}
-version_iteration(){
-  git_commitcount=$(git rev-list --count HEAD)
-  git_version=$(git describe --always)
-  datestring=$(date +%y%m%d)
-  echo "${datestring}c${git_commitcount}git${git_version}"
+  echo "${configversion}-${version_iteration}"
 }
 
 # private
 package_fpm() {
   set_path
-  version=$configversion
-  iteration=$(version_iteration)
 
   bundle exec fpm -s dir -t rpm \
     -x ".git*" \
     -n puppetconfig \
     -p ./build/ \
-    -v $version \
-    --iteration "${iteration}" \
+    -v $configversion \
+    --iteration "${version_iteration}" \
     -a all \
     --description "$package_description" \
     --maintainer "$package_maintainer" \

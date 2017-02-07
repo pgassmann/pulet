@@ -5,10 +5,14 @@ set -e
 dir="$(dirname $(readlink -f $0))"
 cd $dir
 default_path=$PATH
-git_commitdate1=$(git show -s --format=%ci HEAD)
-git_commitdate=$(date -d "${git_commitdate1}" +%y%m%d)
-git_commitcount=$(git rev-list --count HEAD)
-git_version=$(git describe --always)
+# get version information from git if git repo is present
+if [ -d ./.git ]; then
+  git_commitdate1=$(git show -s --format=%ci HEAD)
+  git_commitdate=$(date -d "${git_commitdate1}" +%y%m%d)
+  git_commitcount=$(git rev-list --count HEAD)
+  git_version=$(git describe --always)
+fi
+
 # declare SUBCOMMANDS array variable
 declare -A SUBCOMMANDS
 
@@ -16,6 +20,7 @@ declare -A SUBCOMMANDS
 installmethod="collection"
 environment=production
 configversion=0.0.1
+package_type="rpm"
 package_name="pulet"
 package_description="Puppet Control Repo and Helpers"
 package_maintainer="UNDEFINED <nobody@example.com>"
@@ -184,20 +189,28 @@ package() {
     pulet.conf \
     README.md
 
+  # save version, git is not packaged
+  echo $(version) > ./build/$package_name/version
+
   package_fpm
   rm ./build/$package_name -rf
 }
 
 SUBCOMMANDS[version]="      print config_version"
 version(){
-  echo "${configversion}-${version_iteration}"
+  # when packaged, version is saved in the version file
+  if [ -f ./version ]; then
+    cat ./version
+  else
+    echo "${configversion}-${version_iteration}"
+  fi
 }
 
 # private
 package_fpm() {
   set_path
 
-  bundle exec fpm -s dir -t rpm \
+  bundle exec fpm -s dir -t $package_type \
     -x ".git*" \
     -n $package_name \
     -p ./build/ \

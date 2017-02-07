@@ -5,7 +5,8 @@ set -e
 dir="$(dirname $(readlink -f $0))"
 cd $dir
 default_path=$PATH
-git_commitdate=$(date -d $(git show -s --format=%cI HEAD) +%y%m%d)
+git_commitdate1=$(git show -s --format=%ci HEAD)
+git_commitdate=$(date -d "${git_commitdate1}" +%y%m%d)
 git_commitcount=$(git rev-list --count HEAD)
 git_version=$(git describe --always)
 # declare SUBCOMMANDS array variable

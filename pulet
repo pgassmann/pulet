@@ -16,6 +16,7 @@ declare -A SUBCOMMANDS
 installmethod="collection"
 environment=production
 configversion=0.0.1
+package_name="pulet"
 package_description="Puppet Control Repo and Helpers"
 package_maintainer="UNDEFINED <nobody@example.com>"
 version_iteration="${git_commitdate}c${git_commitcount}git${git_version}"
@@ -153,9 +154,9 @@ package() {
   set -x
 
   # package
-  rm ./build/puppetconfig -rf
-  mkdir -p ./build/puppetconfig
-  cp -a -t ./build/puppetconfig \
+  rm ./build/$package_name -rf
+  mkdir -p ./build/$package_name
+  cp -a -t ./build/$package_name \
     site \
     hieradata \
     manifests\
@@ -168,7 +169,7 @@ package() {
     README.md
 
   package_fpm
-  rm ./build/puppetconfig -rf
+  rm ./build/$package_name -rf
 }
 
 SUBCOMMANDS[version]="      print config_version"
@@ -182,14 +183,14 @@ package_fpm() {
 
   bundle exec fpm -s dir -t rpm \
     -x ".git*" \
-    -n puppetconfig \
+    -n $package_name \
     -p ./build/ \
     -v $configversion \
     --iteration "${version_iteration}" \
     -a all \
     --description "$package_description" \
     --maintainer "$package_maintainer" \
-    ./build/puppetconfig=/opt
+    ./build/$package_name=/opt
 }
 
 SUBCOMMANDS[facts]="        dump facts using custom facts in modules"

@@ -24,6 +24,7 @@ package_type="rpm"
 package_name="pulet"
 package_description="Puppet Control Repo and Helpers"
 package_maintainer="UNDEFINED <nobody@example.com>"
+package_additional_files=""
 version_iteration="${git_commitdate}c${git_commitcount}git${git_version}"
 
 # load settings files
@@ -63,7 +64,7 @@ install_puppet() {
     if ! bundle --version 2>/dev/null;  then
       if [ -f /etc/redhat-release ]; then
         sudo yum clean all
-        sudo yum install -y ruby ruby-dev make gcc
+        sudo yum install -y ruby ruby-devel make gcc
       elif [ -f /etc/debian_version ]; then
         sudo apt-get update
         sudo apt-get install -y ruby ruby-dev make git gcc
@@ -76,9 +77,9 @@ install_puppet() {
   elif [ "$installmethod" == "collection" ]; then
     if [ ! -f $puppetpath/puppet ];  then
       if [ -f /etc/redhat-release ]; then
-        yum localinstall -y "http://yum.puppetlabs.com/puppetlabs-release-pc1-el-7.noarch.rpm"
-        yum clean all
-        yum install -y puppet-agent
+        sudo yum localinstall -y "http://yum.puppetlabs.com/puppetlabs-release-pc1-el-7.noarch.rpm"
+        sudo yum clean all
+        sudo yum install -y puppet-agent
       elif [ -f /etc/debian_version ]; then
         release_codename=$(lsb_release -cs)
         curl -O https://apt.puppetlabs.com/puppetlabs-release-pc1-${release_codename}.deb
@@ -137,6 +138,9 @@ apply() {
     cat /opt/puppetlabs/puppet/cache/state/agent_disabled.lock >&2; echo >&2;
     exit 1
   )
+  # Create lock directory if it doesn't exist
+  [ -d /opt/puppetlabs/puppet/cache/state ] || \
+    mkdir -p /opt/puppetlabs/puppet/cache/state
   # check and set lockfile for puppet apply
   (
     flock -n 9 || ( echo 'Puppet agent lock file exist - skipping' >&2; exit 1 )
@@ -187,7 +191,8 @@ package() {
     hiera.yaml \
     pulet \
     pulet.conf \
-    README.md
+    README.md \
+    ${package_additional_files}
 
   # save version, git is not packaged
   echo $(version) > ./build/$package_name/version

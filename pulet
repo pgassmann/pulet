@@ -179,7 +179,7 @@ package() {
   set -x
 
   # package
-  rm ./build/$package_name -rf
+  rm ./build -rf
   mkdir -p ./build/$package_name
   cp -a -t ./build/$package_name \
     site \
@@ -198,7 +198,6 @@ package() {
   echo $(version) > ./build/$package_name/version
 
   package_fpm
-  rm ./build/$package_name -rf
 }
 
 SUBCOMMANDS[version]="      print config_version"

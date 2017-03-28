@@ -233,11 +233,12 @@ facts() {
   puppet facts --modulepath=./site:./modules "$@"
 }
 
-SUBCOMMANDS[check]="        validate and lint code in site/"
+SUBCOMMANDS[check]="        validate and lint puppet code"
 check() {
   set_path
-  puppet parser validate ./site && echo "validate OK"
-  puppet lint --no-80chars --no-documentation-check ./site && echo "linting OK"
+  puppet parser validate ./site ./manifests && echo "validate OK"
+  puppet lint --no-80chars --no-documentation-check --with-filename ./site && \
+  puppet lint --no-80chars --no-documentation-check --with-filename ./manifests && echo "linting OK"
 }
 
 ## MAIN

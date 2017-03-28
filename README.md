@@ -28,7 +28,22 @@ Why?
 Bootstrap
 ---------
 
-### Prerequisites
+### Workspace Setup
+
+To write and test the configuration on your laptop.
+
+ * clone repository
+ * configure pulet locally to use bundle as source for puppet
+ * install puppet and modules
+
+```
+git clone <repourl>
+cd pulet
+echo "installmethod='bundle'" >> ./pulet.conf.local
+./pulet install
+```
+
+### Bootstrap a Server
 
  * VM with Ubuntu 14.04+ or EL 7+ Server.
  * Git to clone the repo
@@ -37,9 +52,18 @@ Run the following commands to setup your server.
 
     yum install git -y
     git clone <repourl>
-    cd <reponame>
+    cd pulet
     ./pulet setup
 
+
+Customization
+-------------
+
+ * hieradata in `data/`
+ * Puppet Modules in `Puppetfile`
+ * profile manifests in `site/profiles`
+ * hierarchy in `hiera.yaml`
+ * pulet configuration and extensions in `pulet.conf`
 
 How it works
 ------------
@@ -63,10 +87,12 @@ How it works
 
 Commands
 -------
-* ./pulet install: install development environment with tools, without apply
-* ./pulet apply: apply the current configuation, can be used as long as there are no changes in external modules.
-* ./pulet setup: install & apply
-* ./pulet facts: dump facts using custom facts in modules
+* `./pulet help`: show all commands
+* `./pulet install`: install development environment with tools, without apply
+* `./pulet apply`: apply the current configuation, can be used as long as there are no changes in external modules.
+* `./pulet setup`: install & apply
+* `./pulet facts`: dump facts using custom facts in modules
+* `./pulet check`: validate and lint puppet code
 
 
 Package and deploy configuration as rpm
@@ -77,5 +103,5 @@ The complete configuration incl. hieradata and modules can be packaged and deplo
 The configuration can then be directly applied without installing dependencies or modules on a node.
 
 * ./pulet package: package modules and configuration to rpm in ./build/.
-* Install puppetconfig rpm and puppet-agent on a system
-* /opt/puppetconfig/pulet apply: Apply the configuration
+* Install pulet rpm and puppet-agent on a system
+* /opt/pulet/pulet apply: Apply the configuration

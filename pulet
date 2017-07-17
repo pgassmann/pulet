@@ -112,7 +112,7 @@ install_modules(){
 # private
 clean_modules(){
   echo "Clean puppet modules" >&2
-  librarian clean --path ./modules --verbose
+  librarian clean --verbose
 }
 
 SUBCOMMANDS[librarian]="    librarian-puppet"

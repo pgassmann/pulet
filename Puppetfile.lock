@@ -1,11 +1,17 @@
 FORGE
   remote: https://forgeapi.puppetlabs.com
   specs:
+    puppetlabs-apt (2.3.0)
+      puppetlabs-stdlib (< 5.0.0, >= 4.5.0)
     puppetlabs-concat (1.2.5)
       puppetlabs-stdlib (< 5.0.0, >= 3.2.0)
     puppetlabs-stdlib (4.13.1)
+    vshn-gitlab (1.11.0)
+      puppetlabs-apt (< 3.0.0, >= 2.1.0)
+      puppetlabs-stdlib (~> 4.0)
 
 DEPENDENCIES
   puppetlabs-concat (< 2.0.0)
   puppetlabs-stdlib (>= 0)
+  vshn-gitlab (>= 0)
 

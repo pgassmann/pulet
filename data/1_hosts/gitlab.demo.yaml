@@ -1,0 +1,10 @@
+---
+role: gitlab
+
+gitlab::external_url: 'http://gitlab.demo'
+gitlab::gitlab_rails:
+  gitlab_email_enabled:       false
+  gitlab_email_display_name:  'BLS GitLab Test'
+  gitlab_email_reply_to:      'git@gitlab.demo'
+  gitlab_email_from:          'git@gitlab.demo'
+  smtp_enable:                false

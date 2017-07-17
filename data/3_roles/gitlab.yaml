@@ -1,0 +1,22 @@
+---
+profiles:
+  - gitlab
+
+gitlab::gitlab_rails:
+  time_zone:            'CET'
+  gitlab_default_theme: 3
+
+gitlab::sidekiq:
+  shutdown_timeout: 5
+
+gitlab::nginx:
+  redirect_http_to_https: false
+
+
+additional_resources:
+  - cron:
+     'gitlab-backup':
+        command: '/opt/gitlab/bin/gitlab-rake gitlab:backup:create CRON=1'
+        user:     root
+        hour:     23
+        minute:   55

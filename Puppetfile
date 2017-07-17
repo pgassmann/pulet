@@ -8,3 +8,5 @@ forge "https://forgeapi.puppetlabs.com"
 
 mod 'puppetlabs-stdlib'
 mod 'puppetlabs-concat', "< 2.0.0"
+
+mod 'vshn-gitlab'

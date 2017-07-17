@@ -8,7 +8,7 @@ hierarchy:
     path: "1_hosts/%{facts.fqdn}.yaml"
 
   - name: "Domain defaults"
-    path: "2_roles/%{::role}.yaml"
+    path: "2_domains/%{::domain}.yaml"
 
   - name: "Role defaults"
     path: "3_roles/%{::role}.yaml"

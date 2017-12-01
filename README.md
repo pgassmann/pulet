@@ -1,7 +1,9 @@
 pulet
 =====
 
-Enhanced Puppet Control Repo and Tools
+Enhanced Puppet Control Repo and Tools.
+
+[Upstream Projekt auf Github](https://github.com/pgassmann/pulet)
 
 What
 ----

@@ -3,7 +3,11 @@ version: 5
 defaults:
   datadir:   data
   data_hash: yaml_data
+
 hierarchy:
+  - name: "Local/Vagrant overrides"
+    path: "%{::hiera_override}.yaml"
+
   - name: "Per-host data"
     path: "1_hosts/%{facts.fqdn}.yaml"
 

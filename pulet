@@ -5,8 +5,8 @@ set -e
 dir="$(dirname $(readlink -f $0))"
 cd $dir
 default_path=$PATH
-# get version information from git if git repo is present
-if [ -d ./.git ]; then
+# get version information from git if git repo and git binary is present
+if [ -d ./.git ] && hash git >/dev/null 2>&1;  then
   git_commitdate1=$(git show -s --format=%ci HEAD)
   git_commitdate=$(date -d "${git_commitdate1}" +%y%m%d)
   git_commitcount=$(git rev-list --count HEAD)
@@ -49,27 +49,30 @@ help() {
 
 # private
 set_path(){
-  export PATH="$default_path:$puppetpath:$dir/bin"
+  export PATH="$puppetpath:$dir/bin:$default_path"
 }
 
-# private
+SUBCOMMANDS[install_puppet]=" install puppet as configured in installmethod"
 install_puppet() {
   echo "installing puppet, method: ${installmethod}" >&2
   # how to install puppet
   # bundle: install as rubygem
   # collection: install puppet collection package.
-
+  set_path
   if [ "$installmethod" == "bundle" ]; then
     # first run, no bundle commmand
     if ! bundle --version 2>/dev/null;  then
-      if [ -f /etc/redhat-release ]; then
-        sudo yum clean all
-        sudo yum install -y ruby ruby-devel make gcc
-      elif [ -f /etc/debian_version ]; then
-        sudo apt-get update
-        sudo apt-get install -y ruby ruby-dev make git gcc
-      else
-        echo "OS not supported yet"; exit 1
+      # install ruby only if no gem (e.g. from rvm) is available
+      if ! gem --version 2>/dev/null;  then
+        if [ -f /etc/redhat-release ]; then
+          sudo yum clean all
+          sudo yum install -y ruby ruby-devel make gcc
+        elif [ -f /etc/debian_version ]; then
+          sudo apt-get update
+          sudo apt-get install -y ruby ruby-dev make git gcc
+        else
+          echo "OS not supported yet"; exit 1
+        fi
       fi
       gem install bundler --no-ri --no-rdoc
     fi
@@ -77,16 +80,20 @@ install_puppet() {
   elif [ "$installmethod" == "collection" ]; then
     if [ ! -f $puppetpath/puppet ];  then
       if [ -f /etc/redhat-release ]; then
-        sudo yum localinstall -y "http://yum.puppetlabs.com/puppetlabs-release-pc1-el-7.noarch.rpm"
-        sudo yum clean all
-        sudo yum install -y puppet-agent
+        if [ "$(id -u)" != "0" ]; then
+           echo "ERROR: puppet collection needs to be installed as root" 1>&2
+           exit 1
+        fi
+        el_version=$(rpm -q --queryformat '%{RELEASE}' rpm | grep -o [[:digit:]]*\$)
+        yum localinstall -y "https://yum.puppetlabs.com/puppet5/puppet5-release-el-${el_version}.noarch.rpm"
+        yum install -y puppet-agent
       elif [ -f /etc/debian_version ]; then
         release_codename=$(lsb_release -cs)
-        curl -O https://apt.puppetlabs.com/puppetlabs-release-pc1-${release_codename}.deb
-        sudo dpkg -i puppetlabs-release-pc1-${release_codename}.deb
-        rm puppetlabs-release-pc1-${release_codename}.deb
+        curl -O https://apt.puppetlabs.com/puppet5-release-${release_codename}.deb
+        sudo dpkg -i puppet5-release-${release_codename}.deb
+        rm puppet5-release-${release_codename}.deb
         sudo apt update
-        sudo apt install puppet-agent
+        sudo apt install -y puppet-agent
       else
         echo "OS not supported yet"; exit 1
       fi
@@ -97,17 +104,21 @@ install_puppet() {
   fi
 } #end install
 
-# private
+SUBCOMMANDS[install_gems]=" install_gems"
 install_gems(){
   set_path
   echo "Install gems from Gemfile or Gemfile.lock if checked in" >&2
-  bundle install --path=.bundle --binstubs=bin
+  if [ -z $GEM_HOME ]; then
+    bundle install --path=.bundle --binstubs=bin
+  else
+    bundle install --binstubs=bin
+  fi
 }
 
-# private
+SUBCOMMANDS[install_modules]="install modules with librarian puppet"
 install_modules(){
   echo "Install puppet modules" >&2
-  librarian install --path ./modules --verbose
+  librarian install --verbose --destructive "$@"
 }
 # private
 clean_modules(){
@@ -125,13 +136,18 @@ bundle() {
   set_path
   command bundle "$@"
 }
+SUBCOMMANDS[rake]="         bundle exec rakewith correct environment"
+rake() {
+  set_path
+  bundle exec rake "$@"
+}
 
 SUBCOMMANDS[apply]="        apply the current configuation, can be used as long as there are no changes in external modules."
 apply() {
   set_path
   # Run Puppet
   echo "Run Puppet" >&2
-  mkdir -p $environment # Puppet 4 requires an environment directory
+  #mkdir -p ${environment} # Puppet 5 requires an environment directory
   # check puppet agent disable lock file
   [ -f /opt/puppetlabs/puppet/cache/state/agent_disabled.lock ] && (
     echo 'Puppet agent disabled - skipping' >&2;
@@ -150,8 +166,8 @@ apply() {
       --write-catalog-summary \
       --modulepath=modules:site \
       --hiera_config=hiera.yaml \
-      --environmentpath=. \
-      --environment $environment \
+      --environmentpath=.. \
+      --environment $(basename $PWD) \
       manifests/site.pp "$@"
   ) 9>/opt/puppetlabs/puppet/cache/state/agent_catalog_run.lock
 }
@@ -237,8 +253,17 @@ SUBCOMMANDS[check]="        validate and lint puppet code"
 check() {
   set_path
   puppet parser validate ./site ./manifests && echo "validate OK"
-  puppet lint --no-80chars --no-documentation-check --with-filename ./site && \
-  puppet lint --no-80chars --no-documentation-check --with-filename ./manifests && echo "linting OK"
+  puppet lint --no-80chars \
+    --no-140chars-check \
+    --no-documentation-check \
+    --with-filename \
+    ./site && \
+  puppet lint \
+    --no-80chars \
+    --no-documentation-check \
+    --with-filename \
+    ./manifests &&  \
+  echo "linting OK"
 }
 
 ## MAIN

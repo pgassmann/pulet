@@ -17,7 +17,7 @@ fi
 declare -A SUBCOMMANDS
 
 # default settings, can be overridden in ./pulet.conf, /etc/pulet.conf or ./pulet.conf.local (ignored by git & packing)
-installmethod="collection"
+installmethod="ask"
 environment=production
 configversion=0.0.1
 package_type="rpm"
@@ -290,11 +290,24 @@ while getopts :m: opt "$@"; do
       ;;
   esac
 done
-if [ $installmethod = "collection" ]; then
+if [ "$installmethod" == "collection" ]; then
   puppetpath="/opt/puppetlabs/puppet/bin"
-  installmethod=collection
 else
-  installmethod=bundle
+  if [ "$installmethod" == "ask" ]; then
+    echo "installmethod is not yet configured"
+    while true; do
+      read -p "Select installmethod. Available options:
+        b[undle] for installation using bundler (development environment)
+        c[ollection] for running with puppet collection package
+        " method
+      case $method in
+        [Bb]* ) installmethod=bundle; break;;
+        [Cc]* ) installmethod=collection; break;;
+        * ) echo "Please enter b[undle] or c[ollection].";;
+      esac
+    done
+    echo "installmethod=$installmethod" >> ./pulet.conf.local
+  fi
 fi
 # if first arg is a defined subcommand, execute it.
 command=$1

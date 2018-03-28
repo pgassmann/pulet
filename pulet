@@ -18,7 +18,6 @@ declare -A SUBCOMMANDS
 
 # default settings, can be overridden in ./pulet.conf, /etc/pulet.conf or ./pulet.conf.local (ignored by git & packing)
 installmethod="ask"
-environment=production
 configversion=0.0.1
 package_type="rpm"
 package_name="pulet"
@@ -31,10 +30,6 @@ version_iteration="${git_commitdate}c${git_commitcount}git${git_version}"
 [ -f ./pulet.conf ]       && source ./pulet.conf
 [ -f /etc/pulet.conf ]    && source /etc/pulet.conf
 [ -f ./pulet.conf.local ] && source ./pulet.conf.local
-
-# environment can be set via ENV.
-# export PUPPET_ENVIRONMENT=development
-environment=${PUPPET_ENVIRONMENT:-$environment}
 
 # Configuration: Use Puppetlabs collection package? otherwise use bundle
 # Override with ENV PUPPET_INSTALLMETHOD or with option -m bundle
@@ -147,7 +142,6 @@ apply() {
   set_path
   # Run Puppet
   echo "Run Puppet" >&2
-  #mkdir -p ${environment} # Puppet 5 requires an environment directory
   # check puppet agent disable lock file
   [ -f /opt/puppetlabs/puppet/cache/state/agent_disabled.lock ] && (
     echo 'Puppet agent disabled - skipping' >&2;
